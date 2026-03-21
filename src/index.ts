@@ -18,7 +18,16 @@ type TradernetCommand =
   | "getHloc"
   | "tickerFinder"
   | "togglePriceAlert"
-  | "getSecuritySessions";
+  | "getSecuritySessions"
+  | "getStockQuotesJson"
+  | "getNotifyOrderJson"
+  | "getOrdersHistory"
+  | "getTradesHistory"
+  | "getAlertsList"
+  | "getMarketStatus"
+  | "getCrossRatesForDate"
+  | "getNews"
+  | "getTopSecurities";
 
 interface RateLimit {
   maxCalls: number;
@@ -401,7 +410,84 @@ server.tool(
 );
 
 // ==========================================
+// Quotes
+// ==========================================
+
+server.tool(
+  "get_quote",
+  "Get current price, bid, ask, volume and other real-time quote data for one or more tickers.",
+  {
+    tickers: z.string().max(500).describe('Comma-separated tickers, e.g. "AAPL.US,MSFT.US"'),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getStockQuotesJson", ({ tickers }) => ({
+    tickers: tickers.split(",").map((t: string) => t.trim()),
+  }))
+);
+
+// ==========================================
+// Orders & Trades
+// ==========================================
+
+server.tool(
+  "get_orders",
+  "Get current/active orders. Returns order list with status, type, price, quantity.",
+  {
+    active_only: z.boolean().default(true).describe("Show only active orders"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getNotifyOrderJson", ({ active_only }) => ({
+    active_only: active_only ? 1 : 0,
+  }))
+);
+
+server.tool(
+  "get_order_history",
+  "Get historical orders for a date range.",
+  {
+    from: z.string().max(100).describe("Start date in ISO 8601 format"),
+    till: z.string().max(100).describe("End date in ISO 8601 format"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getOrdersHistory", ({ from, till }) => ({ from, till }))
+);
+
+server.tool(
+  "get_trades_history",
+  "Get executed trades for a date range, optionally filtered by ticker.",
+  {
+    beginDate: z.string().max(100).describe("Start date in ISO 8601 format"),
+    endDate: z.string().max(100).describe("End date in ISO 8601 format"),
+    ticker: z.string().max(50).optional().describe("Filter by ticker symbol"),
+    max: z.number().int().optional().describe("Max number of results"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getTradesHistory", ({ beginDate, endDate, ticker, max }) => ({
+    beginDate,
+    endDate,
+    ...(ticker !== undefined && { nt_ticker: ticker }),
+    ...(max !== undefined && { max }),
+  }))
+);
+
+// ==========================================
 // Price Alerts
+// ==========================================
+
+server.tool(
+  "get_price_alerts",
+  "List existing price alerts, optionally filtered by ticker.",
+  {
+    ticker: z.string().max(50).optional().describe("Filter by ticker, or omit for all"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getAlertsList", ({ ticker }) => ({
+    ...(ticker !== undefined && { ticker }),
+  }))
+);
+
+// ==========================================
+// Price Alerts (Create/Delete)
 // ==========================================
 
 server.tool(
@@ -464,6 +550,70 @@ server.tool(
     del: true,
     quote_type: "ltp",
     notification_type: "email",
+  }))
+);
+
+// ==========================================
+// Market Info
+// ==========================================
+
+server.tool(
+  "get_market_status",
+  'Check if markets are open or closed. Use "*" for all markets.',
+  {
+    market: z.string().max(50).default("*").describe('Market code, e.g. "FIX" for NYSE/NASDAQ, "*" for all'),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getMarketStatus", ({ market }) => ({ market }))
+);
+
+server.tool(
+  "get_exchange_rates",
+  "Get currency exchange rates for a base currency against one or more target currencies.",
+  {
+    base_currency: z.string().max(10).describe('Base currency code, e.g. "USD"'),
+    currencies: z.string().max(200).describe('Comma-separated target currency codes, e.g. "EUR,GBP,RUB"'),
+    date: z.string().max(20).optional().describe("Date in ISO 8601 format, or omit for latest"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getCrossRatesForDate", ({ base_currency, currencies, date }) => ({
+    base_currency,
+    currencies: currencies.split(",").map((c: string) => c.trim()),
+    ...(date !== undefined && { date }),
+  }))
+);
+
+server.tool(
+  "get_news",
+  "Get news feed, optionally filtered by ticker or search term.",
+  {
+    ticker: z.string().max(50).optional().describe("Filter by ticker symbol"),
+    query: z.string().max(200).optional().describe("Search term to filter news"),
+    limit: z.number().int().default(10).describe("Max number of news items to return"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getNews", ({ ticker, query, limit }) => ({
+    ...(ticker !== undefined && { ticker }),
+    ...(query !== undefined && { searchFor: query }),
+    limit,
+  }))
+);
+
+server.tool(
+  "get_top_securities",
+  "Get most traded or top gaining/losing securities for a given market.",
+  {
+    type: z.enum(["stocks", "bonds", "futures", "funds", "indexes"]).describe("Security type"),
+    exchange: z.enum(["usa", "europe", "kazakhstan", "currencies"]).describe("Exchange/market"),
+    gainers: z.boolean().default(true).describe("true = top gainers, false = top losers"),
+    limit: z.number().int().default(10).describe("Max number of results"),
+  },
+  { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+  toolHandler(callApi, "getTopSecurities", ({ type, exchange, gainers, limit }) => ({
+    type,
+    exchange,
+    gainers: gainers ? 1 : 0,
+    limit,
   }))
 );
 

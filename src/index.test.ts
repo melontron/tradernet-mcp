@@ -430,10 +430,19 @@ describe("Tool annotations", () => {
       "add_price_alert",
       "cancel_order",
       "delete_price_alert",
+      "get_exchange_rates",
+      "get_market_status",
+      "get_news",
+      "get_order_history",
+      "get_orders",
       "get_portfolio",
+      "get_price_alerts",
+      "get_quote",
       "get_quotes_history",
       "get_security_info",
       "get_security_sessions",
+      "get_top_securities",
+      "get_trades_history",
       "get_user_data",
       "place_order",
       "search_tickers",
@@ -451,6 +460,15 @@ describe("Tool annotations", () => {
       "get_quotes_history",
       "search_tickers",
       "get_security_sessions",
+      "get_quote",
+      "get_orders",
+      "get_order_history",
+      "get_trades_history",
+      "get_price_alerts",
+      "get_market_status",
+      "get_exchange_rates",
+      "get_news",
+      "get_top_securities",
     ];
 
     for (const name of readOnlyTools) {
@@ -755,6 +773,159 @@ describe("API client (via tool invocations)", () => {
       take_profit: 180.0,
       stoploss_trailing_percent: null,
     });
+  });
+
+  it("should correctly map get_quote parameters (split comma-separated tickers)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_quote",
+      arguments: { tickers: "AAPL.US, MSFT.US, GOOG.US" },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({
+      tickers: ["AAPL.US", "MSFT.US", "GOOG.US"],
+    });
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getStockQuotesJson"
+    );
+  });
+
+  it("should correctly map get_orders parameters (boolean to 1/0)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_orders",
+      arguments: { active_only: true },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({ active_only: 1 });
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getNotifyOrderJson"
+    );
+  });
+
+  it("should correctly map get_orders with active_only=false", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_orders",
+      arguments: { active_only: false },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({ active_only: 0 });
+  });
+
+  it("should correctly map get_order_history parameters", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_order_history",
+      arguments: { from: "2025-01-01", till: "2025-01-31" },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({ from: "2025-01-01", till: "2025-01-31" });
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getOrdersHistory"
+    );
+  });
+
+  it("should correctly map get_trades_history parameters (ticker → nt_ticker)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_trades_history",
+      arguments: {
+        beginDate: "2025-01-01",
+        endDate: "2025-01-31",
+        ticker: "AAPL.US",
+        max: 50,
+      },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({
+      beginDate: "2025-01-01",
+      endDate: "2025-01-31",
+      nt_ticker: "AAPL.US",
+      max: 50,
+    });
+    expect(sentBody).not.toHaveProperty("ticker");
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getTradesHistory"
+    );
+  });
+
+  it("should correctly map get_exchange_rates parameters (split currencies)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: {} });
+
+    await client.callTool({
+      name: "get_exchange_rates",
+      arguments: {
+        base_currency: "USD",
+        currencies: "EUR, GBP, RUB",
+        date: "2025-01-15",
+      },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({
+      base_currency: "USD",
+      currencies: ["EUR", "GBP", "RUB"],
+      date: "2025-01-15",
+    });
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getCrossRatesForDate"
+    );
+  });
+
+  it("should correctly map get_news parameters (query → searchFor)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_news",
+      arguments: { ticker: "AAPL.US", query: "earnings", limit: 5 },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({
+      ticker: "AAPL.US",
+      searchFor: "earnings",
+      limit: 5,
+    });
+    expect(sentBody).not.toHaveProperty("query");
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getNews"
+    );
+  });
+
+  it("should correctly map get_top_securities parameters (gainers → 1/0)", async () => {
+    mockedAxiosPost.mockResolvedValueOnce({ data: [] });
+
+    await client.callTool({
+      name: "get_top_securities",
+      arguments: {
+        type: "stocks",
+        exchange: "usa",
+        gainers: false,
+        limit: 5,
+      },
+    });
+
+    const sentBody = JSON.parse(mockedAxiosPost.mock.calls[0][1]);
+    expect(sentBody).toMatchObject({
+      type: "stocks",
+      exchange: "usa",
+      gainers: 0,
+      limit: 5,
+    });
+    expect(mockedAxiosPost.mock.calls[0][0]).toBe(
+      "https://tradernet.com/api/getTopSecurities"
+    );
   });
 });
 
