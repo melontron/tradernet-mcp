@@ -205,17 +205,17 @@ describe("createRateLimiter", () => {
     expect(limiter.check("write")).toBe(false);
   });
 
-  it("should use default limits (30 read, 5 write) when not overridden", () => {
+  it("should use default limits (200 read, 50 write) when not overridden", () => {
     const limiter = createRateLimiter();
-    // Should allow 30 reads
-    for (let i = 0; i < 30; i++) {
+    // Should allow 200 reads
+    for (let i = 0; i < 200; i++) {
       expect(limiter.check("read")).toBe(true);
       limiter.record("read");
     }
     expect(limiter.check("read")).toBe(false);
 
-    // Should allow 5 writes
-    for (let i = 0; i < 5; i++) {
+    // Should allow 50 writes
+    for (let i = 0; i < 50; i++) {
       expect(limiter.check("write")).toBe(true);
       limiter.record("write");
     }
@@ -1172,7 +1172,7 @@ describe("Rate limiting through tool invocations", () => {
   });
 
   it("should allow many read calls within limits", async () => {
-    // Default limit is 30 reads per minute. Making a few should be fine.
+    // Default limit is 200 reads per minute. Making a few should be fine.
     for (let i = 0; i < 5; i++) {
       const result = await client.callTool({
         name: "get_portfolio",
@@ -1183,13 +1183,13 @@ describe("Rate limiting through tool invocations", () => {
   });
 
   it("should eventually rate-limit write operations", async () => {
-    // Default write limit is 5 per minute.
-    // We need to make 6 calls to trigger the limit.
+    // Default write limit is 50 per minute.
+    // We need to make 51 calls to trigger the limit.
     // Note: each callApi checks THEN records, so:
-    //   call 1-5: check passes (0-4 recorded), then record
-    //   call 6: check fails (5 recorded)
+    //   call 1-50: check passes (0-49 recorded), then record
+    //   call 51: check fails (50 recorded)
     const results: any[] = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 52; i++) {
       const result = await client.callTool({
         name: "cancel_order",
         arguments: { order_id: i },
