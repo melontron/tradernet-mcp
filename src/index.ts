@@ -98,8 +98,8 @@ export function validateApiUrl(raw: string): string {
 export function createRateLimiter(limits?: { read?: RateLimit; write?: RateLimit }) {
   const calls = new Map<string, number[]>();
   const config = {
-    read: limits?.read ?? { maxCalls: 30, windowMs: 60_000 },
-    write: limits?.write ?? { maxCalls: 5, windowMs: 60_000 },
+    read: limits?.read ?? { maxCalls: 200, windowMs: 60_000 },
+    write: limits?.write ?? { maxCalls: 50, windowMs: 60_000 },
   };
 
   return {

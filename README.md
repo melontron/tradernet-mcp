@@ -66,14 +66,6 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-#### Claude Code
-
-```bash
-claude mcp add tradernet -- npx -y tradernet-mcp@1.1.2
-```
-
-Then set environment variables `TRADERNET_PUBLIC_KEY` and `TRADERNET_PRIVATE_KEY`.
-
 #### ChatGPT
 
 ChatGPT only supports remote MCP servers over HTTP. To connect this stdio server, use [supergateway](https://github.com/supercorp-ai/supergateway) as a bridge and [ngrok](https://ngrok.com) to expose it publicly:
